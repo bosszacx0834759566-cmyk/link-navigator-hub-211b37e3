@@ -241,6 +241,9 @@ export const ASSETS: Asset[] = [
   // Customer networks
   { id: 'cus-th', name: 'TH Enterprise Edge', kind: 'customer', lat: 13.9, lon: 100.85, altKm: 0, role: 'Fiber handoff', region: 'Thailand', health: 'NOMINAL' },
   { id: 'cus-us', name: 'US Metro Core', kind: 'customer', lat: 39.55, lon: -104.6, altKm: 0, role: 'Fiber handoff', region: 'United States', health: 'NOMINAL' },
+
+  // Generated fleet — brings totals to 50 LEO, 20 HAPS, 20 drones, 20 ground stations
+  ...GENERATED_ASSETS,
 ];
 
 
