@@ -161,62 +161,8 @@ function generateFleet(spec: FleetSpec): Asset[] {
   return out;
 }
 
-/**
- * Operational clusters — each groups LEO coverage, HAPS, relay drones and a
- * ground station in the same region so the lower layers can receive the LEO
- * downlink together. Lat/lon are the cluster anchor.
- */
-const CLUSTERS = [
-  { region: 'Thailand', lat: 14, lon: 101 },
-  { region: 'United States', lat: 39, lon: -105 },
-  { region: 'Europe', lat: 50, lon: 10 },
-  { region: 'South America', lat: -15, lon: -60 },
-  { region: 'Australia', lat: -25, lon: 134 },
-  { region: 'Africa', lat: 2, lon: 22 },
-] as const;
-
-interface ClusterSpec {
-  kind: AssetKind;
-  prefix: string;
-  count: number;
-  startIndex: number;
-  altMin: number;
-  altMax: number;
-  /** spread (degrees) around the cluster anchor */
-  spread: number;
-  role: string;
-  seed: number;
-}
-
-/** Generate assets clustered around the regional anchors so HAPS, drones and
- *  ground stations sit together under the LEO constellation. */
-function generateClusteredFleet(spec: ClusterSpec): Asset[] {
-  const rand = mulberry32(spec.seed);
-  const out: Asset[] = [];
-  for (let i = 0; i < spec.count; i++) {
-    const n = spec.startIndex + i;
-    const anchor = CLUSTERS[i % CLUSTERS.length]!;
-    const lat = anchor.lat + (rand() - 0.5) * 2 * spec.spread;
-    const lon = anchor.lon + (rand() - 0.5) * 2 * spec.spread;
-    const altKm = +(spec.altMin + rand() * (spec.altMax - spec.altMin)).toFixed(1);
-    const health: Health = rand() < 0.88 ? 'NOMINAL' : rand() < 0.75 ? 'DEGRADED' : 'OFFLINE';
-    out.push({
-      id: `${spec.kind}-gen-${n}`,
-      name: `${spec.prefix}-${String(n).padStart(2, '0')}`,
-      kind: spec.kind,
-      lat: +lat.toFixed(2),
-      lon: +(((lon + 540) % 360) - 180).toFixed(2),
-      altKm,
-      role: `${spec.role} (${anchor.region})`,
-      region: anchor.region,
-      health,
-    });
-  }
-  return out;
-}
-
 const GENERATED_ASSETS: Asset[] = [
-  // LEO constellation — 43 generated + 7 curated = 50 (global coverage, passes over every cluster)
+  // LEO constellation — 43 generated + 7 curated = 50 (global coverage)
   ...generateFleet({
     kind: 'satellite',
     prefix: 'OL-SAT',
@@ -229,39 +175,42 @@ const GENERATED_ASSETS: Asset[] = [
     role: 'Constellation capacity relay',
     seed: 1337,
   }),
-  // HAPS — 18 generated + 2 curated = 20, one per cluster position
-  ...generateClusteredFleet({
+  // HAPS — 18 generated + 2 curated = 20, spread around the globe
+  ...generateFleet({
     kind: 'haps',
     prefix: 'HAPS',
     count: 18,
     startIndex: 2,
     altMin: 18,
     altMax: 20,
-    spread: 3,
+    latMin: -45,
+    latMax: 55,
     role: 'Stratospheric relay',
     seed: 4242,
   }),
-  // Relay drones — 18 generated + 2 curated = 20, co-located with clusters
-  ...generateClusteredFleet({
+  // Relay drones — 18 generated + 2 curated = 20, spread around the globe
+  ...generateFleet({
     kind: 'drone',
     prefix: 'DRN',
     count: 18,
     startIndex: 3,
     altMin: 3,
     altMax: 6,
-    spread: 2,
+    latMin: -50,
+    latMax: 58,
     role: 'Low-altitude relay',
     seed: 9001,
   }),
-  // Ground stations — 18 generated + 2 curated = 20, anchored at clusters
-  ...generateClusteredFleet({
+  // Ground stations — 18 generated + 2 curated = 20, spread around the globe
+  ...generateFleet({
     kind: 'ground',
     prefix: 'GS',
     count: 18,
     startIndex: 3,
     altMin: 0,
     altMax: 0,
-    spread: 2.5,
+    latMin: -48,
+    latMax: 60,
     role: 'Gateway station',
     seed: 777,
   }),
