@@ -14,7 +14,8 @@ import {
 } from 'react';
 import * as THREE from 'three';
 
-import earthDay from '@/assets/earth_atmos_2048.jpg';
+import earthDayAsset from '@/assets/earth_atmos_2048.jpg.asset.json';
+const earthDay = earthDayAsset.url;
 import earthNight from '@/assets/earth_lights_2048.png';
 import earthClouds from '@/assets/earth_clouds_1024.png';
 import earthSpec from '@/assets/earth_specular_2048.jpg';
