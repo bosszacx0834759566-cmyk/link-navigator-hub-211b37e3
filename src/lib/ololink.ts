@@ -94,6 +94,128 @@ export const KIND_META: Record<AssetKind, { label: string; plural: string }> = {
   customer: { label: 'Customer Network', plural: 'Customer Networks' },
 };
 
+/** Deterministic pseudo-random generator so the generated fleet is stable
+ *  across reloads (no Math.random — keeps SSR/CSR markup identical). */
+function mulberry32(seed: number) {
+  let a = seed;
+  return () => {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const FLEET_REGIONS = [
+  'Thailand',
+  'United States',
+  'Pacific',
+  'Atlantic',
+  'Eurasia',
+  'Europe',
+  'South America',
+  'Africa',
+  'Indian Ocean',
+  'Australia',
+];
+
+interface FleetSpec {
+  kind: AssetKind;
+  prefix: string;
+  count: number;
+  startIndex: number;
+  altMin: number;
+  altMax: number;
+  latMin: number;
+  latMax: number;
+  role: string;
+  seed: number;
+}
+
+/** Generate `count` assets spread around the globe with realistic altitudes. */
+function generateFleet(spec: FleetSpec): Asset[] {
+  const rand = mulberry32(spec.seed);
+  const out: Asset[] = [];
+  for (let i = 0; i < spec.count; i++) {
+    const n = spec.startIndex + i;
+    // Spread longitudes evenly with jitter; latitudes random within band.
+    const lon = -180 + ((i + 0.5) / spec.count) * 360 + (rand() - 0.5) * 14;
+    const lat = spec.latMin + rand() * (spec.latMax - spec.latMin);
+    const altKm = +(spec.altMin + rand() * (spec.altMax - spec.altMin)).toFixed(1);
+    const region = FLEET_REGIONS[i % FLEET_REGIONS.length]!;
+    // a few non-nominal units for realism
+    const health: Health = rand() < 0.88 ? 'NOMINAL' : rand() < 0.75 ? 'DEGRADED' : 'OFFLINE';
+    out.push({
+      id: `${spec.kind}-gen-${n}`,
+      name: `${spec.prefix}-${String(n).padStart(2, '0')}`,
+      kind: spec.kind,
+      lat: +lat.toFixed(2),
+      lon: +(((lon + 540) % 360) - 180).toFixed(2),
+      altKm,
+      role: `${spec.role} (${region})`,
+      region,
+      health,
+    });
+  }
+  return out;
+}
+
+const GENERATED_ASSETS: Asset[] = [
+  // LEO constellation — 43 generated + 7 curated = 50
+  ...generateFleet({
+    kind: 'satellite',
+    prefix: 'OL-SAT',
+    count: 43,
+    startIndex: 12,
+    altMin: 500,
+    altMax: 720,
+    latMin: -55,
+    latMax: 60,
+    role: 'Constellation capacity relay',
+    seed: 1337,
+  }),
+  // HAPS — 18 generated + 2 curated = 20
+  ...generateFleet({
+    kind: 'haps',
+    prefix: 'HAPS',
+    count: 18,
+    startIndex: 2,
+    altMin: 18,
+    altMax: 20,
+    latMin: -45,
+    latMax: 55,
+    role: 'Stratospheric relay',
+    seed: 4242,
+  }),
+  // Relay drones — 18 generated + 2 curated = 20
+  ...generateFleet({
+    kind: 'drone',
+    prefix: 'DRN',
+    count: 18,
+    startIndex: 3,
+    altMin: 3,
+    altMax: 6,
+    latMin: -40,
+    latMax: 50,
+    role: 'Low-altitude relay',
+    seed: 9001,
+  }),
+  // Ground stations — 18 generated + 2 curated = 20
+  ...generateFleet({
+    kind: 'ground',
+    prefix: 'GS',
+    count: 18,
+    startIndex: 3,
+    altMin: 0,
+    altMax: 0,
+    latMin: -50,
+    latMax: 58,
+    role: 'Gateway station',
+    seed: 777,
+  }),
+];
+
 export const ASSETS: Asset[] = [
   // LEO constellation (orchestrated, not owned) — spread across realistic orbits
   { id: 'sat-th-1', name: 'OL-SAT-01', kind: 'satellite', lat: 16, lon: 102, altKm: 550, role: 'Optical downlink (Thailand)', region: 'Thailand', health: 'NOMINAL' },
